@@ -1,6 +1,8 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -8,6 +10,7 @@ const port = process.env.PORT || 5000;
 //middleware
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.d2ts7wd.mongodb.net/?appName=Cluster0`;
@@ -21,6 +24,22 @@ const client = new MongoClient(uri, {
   },
 });
 
+//verify token
+function verifyToken(req,res,next){
+const token = req.cookies?.token;
+// console.log(token);
+if(!token){
+  return res.status(401).send({error: true, message: "unauthorized access"});
+}
+jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
+  if (err) {
+    return res.status(403).send({error: true, message: "forbidden access"});
+  }
+  req.decoded = decoded;
+  next();
+});
+
+}
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
@@ -33,6 +52,21 @@ async function run() {
     const db = client.db("donation-campaign-platform");
     const campaignCollection = db.collection("campaigns");
     const donorCollection = db.collection("donors");
+
+    //jwt
+    app.post("/jwt", (req, res) => {
+      const email = req.body;
+      const token = jwt.sign(email, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "24h",
+      });
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: true,
+          sameSite: "None",
+        })
+        .send({ success: true });
+    });
 
     // create a add campaign
     app.post("/add-campaign", async (req, res) => {
@@ -111,7 +145,7 @@ async function run() {
     });
 
     //for get all donations created by a specific user
-    app.get("/donation-request/:email", async (req, res) => {
+    app.get("/donation-request/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
       const query = { "organizer.email": email };
       const result = await donorCollection.find(query).toArray();
