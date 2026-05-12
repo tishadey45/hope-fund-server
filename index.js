@@ -31,31 +31,110 @@ async function run() {
       "Pinged your deployment. You successfully connected to MongoDB 🚀",
     );
     const db = client.db("donation-campaign-platform");
-    const donationCollection = db.collection("donations");
+    const campaignCollection = db.collection("campaigns");
+    const donorCollection = db.collection("donors");
 
-    // create a donation
-    app.post("/donation", async (req, res) => {
+    // create a add campaign
+    app.post("/add-campaign", async (req, res) => {
       const donation = req.body;
-      const result = await donationCollection.insertOne(donation);
+      const result = await campaignCollection.insertOne(donation);
       res.send(result);
-    }); 
-    
-   //get all donation
-   app.get("/donations", async (req,res)=>{
-    const result = await donationCollection.find().toArray();
-    res.send(result);
-   })
+    });
 
-   //get single donation
-   app.get("/donation/:id", async (req,res)=>{
-    const id = req.params.id;
-    console.log(id);
-    const query = {_id: new ObjectId(id)};
-    // console.log(query);
-    const result = await donationCollection.findOne(query);
-    res.send(result);
-   })
-    
+    //get all campaigns
+    app.get("/campaigns", async (req, res) => {
+      const result = await campaignCollection.find().toArray();
+      res.send(result);
+    });
+
+    //get single campaign
+    app.get("/campaign/:id", async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const query = { _id: new ObjectId(id) };
+      // console.log(query);
+      const result = await campaignCollection.findOne(query);
+      res.send(result);
+    });
+
+    //delete campaign
+    app.delete("/campaign/:id", async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const query = { _id: new ObjectId(id) };
+      const result = await campaignCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    //update campaign
+    app.put("/campaign/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const donation = req.body;
+      const updatedDonation = {
+        $set: {
+          campaign_title: donation.campaign_title,
+          category: donation.category,
+          goal_amount: donation.goal_amount,
+          raised_amount: donation.raised_amount,
+          donation_amount: donation.donation_amount,
+        },
+      };
+      const options = { upsert: true };
+      const result = await campaignCollection.updateOne(
+        filter,
+        updatedDonation,
+        options,
+      );
+      res.send(result);
+    });
+
+    //create a donation
+    app.post("/donor", async (req, res) => {
+      const order = req.body;
+      const result = await donorCollection.insertOne(order);
+      res.send(result);
+    });
+
+    //get all donors
+    app.get("/donors", async (req, res) => {
+      const result = await donorCollection.find().toArray();
+      res.send(result);
+    });
+
+    //get my donation
+    app.get("/my-donation/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { "donor.email": email };
+      const result = await donorCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    //for get all donations created by a specific user
+    app.get("/donation-request/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { "organizer.email": email };
+      const result = await donorCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    //donation status
+    app.patch("/donation-status/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updatedDonation = {
+        $set: {
+          status: "approved",
+        },
+      };
+      const options = { upsert: true };
+      const result = await donorCollection.updateOne(
+        filter,
+        updatedDonation,
+        options,
+      );
+      res.send(result);
+    });
   } finally {
   }
 }
