@@ -137,7 +137,7 @@ async function run() {
     });
 
     //get my donation
-    app.get("/my-donation/:email", async (req, res) => {
+    app.get("/my-donation/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
       const query = { "donor.email": email };
       const result = await donorCollection.find(query).toArray();
